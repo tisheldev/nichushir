@@ -1428,10 +1428,17 @@ function jsonp(url){
 /* ---------- audio ---------- */
 let actx = null, master = null, current = null, buffers = {};
 let volume = store.get("nichushir-volume", 0.8);
-const gainFor = v => v * v; // perceptual curve: the knob feels even across its sweep
+// Perceptual curve so the knob feels even across its sweep. Decoded AAC previews peak up to ~1.1
+// (above full scale), so even 100% keeps ~1.4 dB of headroom instead of clipping.
+const HEADROOM = 0.85;
+const gainFor = v => v * v * HEADROOM;
 function ctx(){
   if (!actx){
-    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    // "playback" uses larger audio buffers, which avoids crackles when the page is busy (phones especially);
+    // 44.1 kHz matches the previews, so the browser doesn't resample them on decode.
+    try{ actx = new AC({latencyHint: "playback", sampleRate: 44100}); }
+    catch(e){ try{ actx = new AC({latencyHint: "playback"}); } catch(e2){ actx = new AC(); } }
     master = actx.createGain(); master.gain.value = gainFor(volume); master.connect(actx.destination);
   }
   return actx;
@@ -1514,6 +1521,7 @@ let raf = 0;
 function setIcon(playing){ $("playIcon").setAttribute("d", playing ? "M6.5 5.5h4v13h-4zM13.5 5.5h4v13h-4z" : "M8 5.5v13l11-6.5z"); }
 
 /* ---------- waveform ---------- */
+let waveColor = "";
 function drawWave(buf, offset, shownSec, playedSec){
   const cv = $("wave"), dpr = window.devicePixelRatio || 1;
   const w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
@@ -1522,7 +1530,7 @@ function drawWave(buf, offset, shownSec, playedSec){
   const bars = Math.floor(w / 5), n = LADDER.length;
   const tAt = f => { const k = Math.min(n - 1, Math.floor(f * n)), prev = k ? LADDER[k-1] : 0; return prev + (f * n - k) * (LADDER[k] - prev); };
   const data = buf ? buf.getChannelData(0) : null, sr = buf ? buf.sampleRate : 1;
-  const css = getComputedStyle(document.documentElement);
+  const dialColor = waveColor || (waveColor = getComputedStyle(document.documentElement).getPropertyValue("--dial"));
   for (let i=0;i<bars;i++){
     const tA = tAt(i / bars), tB = tAt((i + 1) / bars);
     let amp = 0.08;
@@ -1532,7 +1540,7 @@ function drawWave(buf, offset, shownSec, playedSec){
     }
     const bh = Math.max(2, amp * (h - 4));
     const x = w - (i+1) * 5; // right-to-left, matching the Hebrew reading direction
-    g.fillStyle = tA < playedSec ? css.getPropertyValue("--dial") : (tA < shownSec ? "#5f778a" : "#24343f");
+    g.fillStyle = tA < playedSec ? dialColor : (tA < shownSec ? "#5f778a" : "#24343f");
     g.fillRect(x, (h - bh)/2, 3, bh);
   }
 }
@@ -1608,6 +1616,7 @@ function replaceMissing(){
 
 /* ---------- actions ---------- */
 function clipLen(){ return LADDER[Math.min(round.tries.length, LADDER.length - 1)]; }
+let lastWave = 0;
 function onPlay(){
   if (!round) return;
   if (current){ stopAudio(); return; }
@@ -1619,7 +1628,9 @@ function onPlay(){
   const play = round.buf ? (a, b, c) => playSlice(round.buf, a, b, c) : (a, b, c) => playEl(round.el, a, b, c);
   play(off, dur, p => {
     const shown = full ? 30 : clipLen();
-    paintBar(p < 0 ? 0 : p); drawWave(round.buf, round.offset, shown, p < 0 ? 0 : p);
+    paintBar(p < 0 ? 0 : p);
+    const now = performance.now(); // redraw the waveform ~20×/s rather than every frame, to keep the main thread free for audio
+    if (p < 0 || now - lastWave > 50){ lastWave = now; drawWave(round.buf, round.offset, shown, p < 0 ? 0 : p); }
   });
 }
 function submitGuess(id){
