@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ניחושיר</title>
+<meta name="description" content="נחשו שירים עבריים מכל הזמנים מקטע של עשירית שנייה. חמישה שירים ביום, מקל ועד בלתי אפשרי.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@400;700&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one centered "night radio" console — tuning dial on top, big play key, clip ladder, guess line. */
+:root{
+  color-scheme: dark;
+  --bg:#0e1820;          /* night sky behind the set */
+  --panel:#16232d;       /* radio body */
+  --panel-2:#1d2d39;     /* inset controls */
+  --line:#2b3e4c;
+  --fg:#eef0e8;
+  --muted:#8ea2ad;
+  --dial:#f3b640;        /* amber dial glow */
+  --dial-dim:rgba(243,182,64,.16);
+  --ok:#58d19a;
+  --bad:#ee6b5c;
+  --near:#f3b640;
+  --skip:#3a4e5c;
+  --d1:#58d19a; --d2:#e9d35a; --d3:#f39a45; --d4:#ee6b5c; --d5:#b88cf5;
+  --display:"Karantina","Secular One","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans Hebrew","Rubik","Segoe UI",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:14px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(1200px 500px at 50% -120px, rgba(243,182,64,.10), transparent 70%),
+    var(--bg);
+  color:var(--fg);
+  font:15px/1.55 var(--body);
+  min-height:100vh;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(28px + env(safe-area-inset-bottom,0px));
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--dial);outline-offset:2px}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+/* header */
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand h1{font:700 64px/0.8 var(--display);margin:0;letter-spacing:.5px}
+.brand h1 span{color:var(--dial)}
+.brand p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.modes{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
+.modes button{border:0;background:none;padding:6px 14px;border-radius:999px;font-weight:600;font-size:14px;color:var(--muted)}
+.modes button[aria-pressed="true"]{background:var(--dial);color:#1a1405}
+
+/* the set */
+.set{background:linear-gradient(180deg,var(--panel),#132029);border:1px solid var(--line);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:18px;box-shadow:0 30px 60px -30px rgba(0,0,0,.7)}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;min-height:30px}
+.daynum{font:500 13px var(--mono);color:var(--muted)}
+.poolnote{font-size:13px;color:var(--muted)}
+.diffs{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--c);background:transparent;display:inline-flex;gap:5px;align-items:center}
+.pill[data-state="current"]{background:var(--c);color:#13110a;border-color:var(--c)}
+.pill[data-state="won"]::before{content:"✓"}
+.pill[data-state="lost"]{opacity:.5;text-decoration:line-through}
+.streak{display:flex;gap:14px;font-size:13px;color:var(--muted)}
+.streak b{font:500 15px var(--mono);color:var(--fg)}
+
+/* tuning dial */
+.dial{position:relative;direction:ltr;background:#0b141a;border:1px solid var(--line);border-radius:10px;height:62px;overflow:hidden}
+.dial::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(243,182,64,.07),transparent 40%,transparent 60%,rgba(0,0,0,.25));pointer-events:none}
+.ticks{position:absolute;inset:8px 18px auto;height:14px;background:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 100%);background-size:calc(100% / 42) 100%;opacity:.9}
+.decades{position:absolute;inset:auto 18px 8px;display:grid;grid-template-columns:repeat(7,1fr)}
+.decades button{border:0;background:none;padding:4px 0;font:500 13px var(--mono);color:var(--muted);border-radius:6px}
+.decades button[aria-pressed="true"]{color:var(--dial);text-shadow:0 0 10px rgba(243,182,64,.6)}
+.decades button:disabled{cursor:default}
+.needle{position:absolute;top:4px;bottom:4px;width:2px;background:var(--bad);box-shadow:0 0 10px var(--bad);left:50%;transition:left .9s cubic-bezier(.3,1.4,.5,1)}
+.needle.hunting{animation:hunt 2.6s ease-in-out infinite}
+@keyframes hunt{0%,100%{left:22%}50%{left:78%}}
+.dial-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:-10px}
+.dial-label button{border:0;background:none;padding:0;color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:12px}
+.dial-label button[aria-pressed="true"]{color:var(--dial);text-decoration:none}
+
+/* play key */
+.stage{display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0 2px}
+.play{width:132px;height:132px;border-radius:50%;border:0;background:radial-gradient(circle at 35% 30%,#fff,#e9e6dc 55%,#cfcabb);box-shadow:0 0 0 8px var(--panel-2),0 0 0 9px var(--line),0 18px 30px -10px rgba(0,0,0,.6);display:grid;place-items:center;position:relative;transition:transform .12s}
+.play:active{transform:scale(.97)}
+.play svg{width:46px;height:46px;fill:#15212a}
+.play[data-busy="true"] svg{opacity:.25}
+.play .spin{position:absolute;inset:-9px;border-radius:50%;border:3px solid transparent;border-top-color:var(--dial);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.play:disabled{cursor:not-allowed}
+.wave{width:100%;height:46px;display:block}
+.stage-row{width:100%;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.vol{justify-self:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.knob{--v:.8;--rot:81deg;width:58px;height:58px;border-radius:50%;position:relative;cursor:grab;touch-action:none;
+  background:radial-gradient(circle at 38% 32%,#4a6072,#22323d 62%,#1a2730);
+  box-shadow:0 0 0 3px var(--panel-2),0 0 0 4px var(--line),0 8px 14px -6px rgba(0,0,0,.6)}
+.knob:active{cursor:grabbing}
+.knob::before{content:"";position:absolute;inset:-12px;border-radius:50%;
+  background:conic-gradient(from 225deg,var(--dial) calc(var(--v) * 270deg),var(--line) 0 270deg,transparent 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px));
+          mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px))}
+.knob .cap{position:absolute;inset:0;transform:rotate(var(--rot));border-radius:50%;
+  background:repeating-conic-gradient(rgba(255,255,255,.05) 0 6deg,transparent 6deg 12deg)}
+.knob .cap::after{content:"";position:absolute;left:50%;top:6px;width:3px;height:14px;margin-left:-1.5px;border-radius:2px;background:var(--dial);box-shadow:0 0 6px rgba(243,182,64,.6)}
+.vol-label{font:500 11px var(--mono);color:var(--muted);direction:ltr;min-width:4ch;text-align:center}
+.ladder{width:100%;display:flex;flex-direction:column;gap:6px}
+.bar{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;height:10px}
+.seg{background:var(--skip);opacity:.45;border-radius:3px;position:relative;overflow:hidden}
+.seg.open{opacity:1;background:#40566a}
+.seg .fill{position:absolute;inset:0 0 0 auto;width:0;background:var(--dial)}
+.ladder-meta{display:flex;justify-content:space-between;font:500 12px var(--mono);color:var(--muted)}
+.ladder-meta b{color:var(--dial);font-weight:500}
+
+/* guessing */
+.guess{display:flex;gap:8px;position:relative}
+.field{flex:1;min-width:0;position:relative}
+.field input{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px 12px 48px;font-size:16px}
+.field input::placeholder{color:var(--muted)}
+.field .count{position:absolute;left:12px;top:50%;transform:translateY(-50%);font:500 12px var(--mono);color:var(--muted);direction:ltr}
+.btn{border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:0 16px;font-weight:600;white-space:nowrap;min-height:46px}
+.btn.primary{background:var(--dial);border-color:var(--dial);color:#1a1405}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.suggest{position:absolute;top:calc(100% + 6px);inset-inline:0;background:#0f1a22;border:1px solid var(--line);border-radius:12px;list-style:none;margin:0;padding:4px;z-index:5;max-height:280px;overflow:auto;box-shadow:0 20px 40px -10px rgba(0,0,0,.6)}
+.suggest li{padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+.suggest li small{color:var(--muted)}
+.suggest li[aria-selected="true"],.suggest li:hover{background:var(--panel-2)}
+.tries{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.try{height:34px;border-radius:8px;border:1px dashed var(--line);font-size:12px;display:flex;align-items:center;justify-content:center;padding:0 4px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.try[data-s]{border-style:solid;color:#0e1820;font-weight:600}
+.try[data-s="skip"]{background:var(--skip);border-color:var(--skip);color:var(--fg)}
+.try[data-s="wrong"]{background:var(--bad);border-color:var(--bad)}
+.try[data-s="near"]{background:var(--near);border-color:var(--near)}
+.try[data-s="ok"]{background:var(--ok);border-color:var(--ok)}
+.note{min-height:20px;font-size:13px;color:var(--muted);text-align:center;margin:0}
+.note.err{color:var(--bad)}
+
+/* reveal */
+.reveal{display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.reveal img{width:96px;height:96px;border-radius:8px;object-fit:cover;background:#0b141a}
+.reveal .verdict{font:700 30px/1 var(--display);margin:0 0 4px}
+.reveal .verdict.ok{color:var(--ok)} .reveal .verdict.bad{color:var(--bad)}
+.reveal h2{margin:0;font-size:18px;line-height:1.3}
+.reveal .meta{color:var(--muted);font-size:13px}
+.reveal .acts{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.reveal .acts .btn{flex:1}
+.reveal a{color:var(--muted);font-size:13px;align-self:center}
+
+/* summary */
+.summary{display:flex;flex-direction:column;gap:12px;text-align:center}
+.summary .big{font:700 84px/0.9 var(--display);color:var(--dial);margin:0}
+.summary .big small{font-size:36px;color:var(--muted)}
+.rows{display:flex;flex-direction:column;gap:6px;text-align:start}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--panel-2);border-radius:10px;padding:8px 10px;font-size:14px}
+.row .pill{justify-self:start}
+.row span:last-child{font:500 13px var(--mono);color:var(--muted)}
+.row .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.share{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.foot{color:var(--muted);font-size:12px;text-align:center;line-height:1.6}
+.foot a{color:var(--muted)}
+@media (max-width:420px){
+  .brand h1{font-size:52px}
+  .play{width:116px;height:116px}
+  .reveal{grid-template-columns:72px 1fr}
+  .reveal img{width:72px;height:72px}
+  .btn{padding:0 12px}
+  .tries{grid-template-columns:repeat(4,1fr)}
+}
+@media (prefers-reduced-motion:reduce){
+  .needle{transition:none}.needle.hunting{animation:none;left:50%}
+  .play .spin{animation-duration:3s}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>ניחו<span>שיר</span></h1>
+      <p>שירים עבריים מכל הדורות, מעשירית שנייה</p>
+    </div>
+    <nav class="modes" aria-label="מצב משחק">
+      <button id="mode-daily" aria-pressed="true">יומי</button>
+      <button id="mode-endless" aria-pressed="false">אינסופי</button>
+    </nav>
+  </header>
+
+  <main class="set" id="set">
+    <div class="topline" id="topline"></div>
+
+    <div>
+      <div class="dial" id="dial" aria-label="חוגת העשורים">
+        <div class="ticks"></div>
+        <div class="needle hunting" id="needle"></div>
+        <div class="decades" id="decades"></div>
+      </div>
+    </div>
+    <div class="dial-label" id="dialLabel"></div>
+
+    <div id="playArea">
+      <div class="stage">
+        <div class="stage-row">
+          <div class="vol">
+            <div class="knob" id="knob" role="slider" tabindex="0" aria-label="עוצמת שמע" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80"><span class="cap"></span></div>
+            <span class="vol-label" id="volLabel">80%</span>
+          </div>
+          <button class="play" id="play" aria-label="השמעת הקטע">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path id="playIcon" d="M8 5.5v13l11-6.5z"/></svg>
+          </button>
+          <span></span>
+        </div>
+        <canvas class="wave" id="wave" aria-hidden="true"></canvas>
+        <div class="ladder">
+          <div class="bar" id="bar"></div>
+          <div class="ladder-meta"><span id="unlocked"></span><span>30s</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="guessArea">
+      <div class="guess">
+        <div class="field">
+          <input id="guessInput" type="text" autocomplete="off" placeholder="שם השיר או הזמר…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest">
+          <span class="count" id="count">1/8</span>
+          <ul class="suggest" id="suggest" role="listbox" hidden></ul>
+        </div>
+        <button class="btn" id="skip">דלג</button>
+      </div>
+    </div>
+    <div class="tries" id="tries"></div>
+    <p class="note" id="note"></p>
+    <div id="reveal" hidden></div>
+    <div id="summary" class="summary" hidden></div>
+  </main>
+
+  <p class="foot">הקטעים הם תצוגות מקדימות של 30 שניות מ־Apple Music, נטענים ישירות מהשרתים שלהם.<br>כל יום חמישה שירים חדשים, מקל ועד בלתי אפשרי. ירוק = ניחוש נכון, צהוב = הזמר נכון אבל לא השיר.<br>את כפתור העוצמה מסובבים בגרירה, בגלגלת או בחיצים. לחיצה כפולה משתיקה.</p>
+</div>
+
+<script>
+/* ---------- data ---------- */
+// [id, title, artist, decade, tier]; tier 1 = an artist's biggest hit … 4 = deep cut
+const SONGS = /*SONGS*/[];
+const DECADES = [60,70,80,90,2000,2010,2020];
+const DEC_LABEL = {60:"60s",70:"70s",80:"80s",90:"90s",2000:"00s",2010:"10s",2020:"20s"};
+const DEC_HE = {60:"שנות ה־60",70:"שנות ה־70",80:"שנות ה־80",90:"שנות ה־90",2000:"שנות ה־2000",2010:"שנות ה־2010",2020:"שנות ה־2020"};
+const LADDER = [0.1, 0.5, 1, 2, 4, 8, 16, 30];
+const POINTS = [100, 85, 70, 55, 40, 25, 15, 5];
+const DIFFS = [
+  {n:"קל", c:"var(--d1)", tier:[1]},
+  {n:"בינוני", c:"var(--d2)", tier:[2]},
+  {n:"קשה", c:"var(--d3)", tier:[3], half:0},
+  {n:"מומחה", c:"var(--d4)", tier:[3], half:1},
+  {n:"בלתי אפשרי", c:"var(--d5)", tier:[4]},
+];
+const EPOCH = "2026-11-07";
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+function todayIL(){
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jerusalem",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+}
+function dayNumber(d){ return Math.round((Date.parse(d) - Date.parse(EPOCH)) / 864e5) + 1; }
+function hash(s){ let h = 1779033703 ^ s.length; for (let i=0;i<s.length;i++){ h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return h >>> 0; }
+function rng(seed){ return function(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const norm = s => s.replace(/[֑-ׇ]/g,"").replace(/["'״׳`\-–־.,!?()]/g,"").replace(/\s+/g," ").trim().toLowerCase();
+const byId = Object.fromEntries(SONGS.map(s => [s.id, s]));
+
+/* ---------- iTunes lookup ---------- */
+const meta = {};
+async function lookup(ids){
+  const need = ids.filter(id => !meta[id]);
+  if (need.length){
+    const url = "https://itunes.apple.com/lookup?country=IL&entity=song&id=" + need.join(",");
+    let j;
+    try{
+      const r = await fetch(url);
+      if (!r.ok) throw new Error("lookup " + r.status);
+      j = await r.json();
+    }catch(e){
+      j = await jsonp(url); // some browsers block cross-site requests from a local file; a script tag still works
+    }
+    for (const x of j.results || []) if (x.previewUrl) meta[x.trackId] = x;
+    for (const id of need) if (!meta[id]) meta[id] = {missing:true};
+  }
+  return ids.map(id => meta[id]);
+}
+
+function jsonp(url){
+  return new Promise((res, rej) => {
+    const cb = "__nichushir" + Math.random().toString(36).slice(2);
+    const s = document.createElement("script");
+    const t = setTimeout(() => { done(); rej(new Error("lookup timeout")); }, 12000);
+    function done(){ clearTimeout(t); try{ delete window[cb]; }catch(e){} s.remove(); }
+    window[cb] = d => { done(); res(d); };
+    s.onerror = () => { done(); rej(new Error("lookup blocked")); };
+    s.src = url + "&callback=" + cb;
+    document.head.appendChild(s);
+  });
+}
+
+/* ---------- audio ---------- */
+let actx = null, master = null, current = null, buffers = {};
+let volume = store.get("nichushir-volume", 0.8);
+const gainFor = v => v * v; // perceptual curve: the knob feels even across its sweep
+function ctx(){
+  if (!actx){
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain(); master.gain.value = gainFor(volume); master.connect(actx.destination);
+  }
+  return actx;
+}
+function setVolume(v){
+  volume = Math.round(Math.max(0, Math.min(1, v)) * 100) / 100;
+  store.set("nichushir-volume", volume);
+  const k = $("knob"), pct = Math.round(volume * 100);
+  k.style.setProperty("--v", volume);
+  k.style.setProperty("--rot", (-135 + volume * 270) + "deg");
+  k.setAttribute("aria-valuenow", pct);
+  k.setAttribute("aria-valuetext", volume === 0 ? "מושתק" : pct + "%");
+  $("volLabel").textContent = volume === 0 ? "MUTE" : pct + "%";
+  if (master) master.gain.setTargetAtTime(gainFor(volume), actx.currentTime, 0.015);
+  if (current && current.el) current.el.volume = gainFor(volume);
+}
+async function loadBuffer(id){
+  if (buffers[id]) return buffers[id];
+  const m = meta[id];
+  const ab = await fetch(m.previewUrl).then(r => { if (!r.ok) throw new Error("audio " + r.status); return r.arrayBuffer(); });
+  const buf = await new Promise((res, rej) => ctx().decodeAudioData(ab, res, rej));
+  buffers[id] = buf; return buf;
+}
+async function loadMedia(id){
+  try{ return {buf: await loadBuffer(id)}; }
+  catch(e){
+    // fallback: plain <audio> playback, which needs no cross-site permission
+    const el = new Audio();
+    el.preload = "auto";
+    await new Promise((res, rej) => {
+      const t = setTimeout(res, 6000);
+      el.addEventListener("loadedmetadata", () => { clearTimeout(t); res(); }, {once:true});
+      el.addEventListener("error", () => { clearTimeout(t); rej(new Error("audio blocked")); }, {once:true});
+      el.src = meta[id].previewUrl; el.load();
+    });
+    return {el};
+  }
+}
+function playEl(el, offset, dur, onTick){
+  stopAudio();
+  const cur = {el, timer:0}; current = cur;
+  setIcon(true);
+  const start = () => {
+    if (current !== cur) return;
+    const t0 = performance.now();
+    cur.timer = setTimeout(() => { if (current === cur){ el.pause(); current = null; setIcon(false); cancelAnimationFrame(raf); onTick && onTick(-1); } }, dur * 1000);
+    const loop = () => { if (current !== cur) return; onTick && onTick((performance.now() - t0) / 1000); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+  };
+  el.volume = gainFor(volume);
+  el.addEventListener("playing", start, {once:true});
+  try{ el.currentTime = offset; }catch(e){}
+  const pr = el.play();
+  if (pr) pr.catch(() => { if (current === cur){ current = null; setIcon(false); } });
+}
+function stopAudio(){
+  if (current){
+    if (current.src){ try{ current.src.stop(); }catch(e){} }
+    if (current.el){ clearTimeout(current.timer); try{ current.el.pause(); }catch(e){} }
+    current = null;
+  }
+  cancelAnimationFrame(raf); setIcon(false); paintBar(0);
+}
+function playSlice(buf, offset, dur, onTick){
+  stopAudio();
+  const c = ctx(); if (c.state === "suspended") c.resume();
+  const src = c.createBufferSource(); src.buffer = buf;
+  const g = c.createGain(); src.connect(g).connect(master);
+  const t0 = c.currentTime + 0.03, fade = Math.min(0.012, dur/4);
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(1, t0 + fade);
+  g.gain.setValueAtTime(1, t0 + dur - fade); g.gain.linearRampToValueAtTime(0, t0 + dur);
+  src.start(t0, offset, dur);
+  current = {src, t0, dur};
+  setIcon(true);
+  src.onended = () => { if (current && current.src === src){ current = null; setIcon(false); cancelAnimationFrame(raf); onTick && onTick(-1); } };
+  const loop = () => { if (!current) return; const p = Math.max(0, c.currentTime - t0); onTick && onTick(p); raf = requestAnimationFrame(loop); };
+  raf = requestAnimationFrame(loop);
+}
+let raf = 0;
+function setIcon(playing){ $("playIcon").setAttribute("d", playing ? "M6.5 5.5h4v13h-4zM13.5 5.5h4v13h-4z" : "M8 5.5v13l11-6.5z"); }
+
+/* ---------- waveform ---------- */
+function drawWave(buf, offset, shownSec, playedSec){
+  const cv = $("wave"), dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0,0,w,h);
+  const bars = Math.floor(w / 5), n = LADDER.length;
+  const tAt = f => { const k = Math.min(n - 1, Math.floor(f * n)), prev = k ? LADDER[k-1] : 0; return prev + (f * n - k) * (LADDER[k] - prev); };
+  const data = buf ? buf.getChannelData(0) : null, sr = buf ? buf.sampleRate : 1;
+  const css = getComputedStyle(document.documentElement);
+  for (let i=0;i<bars;i++){
+    const tA = tAt(i / bars), tB = tAt((i + 1) / bars);
+    let amp = 0.08;
+    if (data && tA < shownSec){
+      const a = Math.floor((offset + tA) * sr), b = Math.min(data.length, Math.floor((offset + tB) * sr));
+      let m = 0; const step = Math.max(1, Math.floor((b - a) / 400)); for (let k=a; k<b; k+=step) m = Math.max(m, Math.abs(data[k]||0)); amp = Math.max(0.08, m);
+    }
+    const bh = Math.max(2, amp * (h - 4));
+    const x = w - (i+1) * 5; // right-to-left, matching the Hebrew reading direction
+    g.fillStyle = tA < playedSec ? css.getPropertyValue("--dial") : (tA < shownSec ? "#5f778a" : "#24343f");
+    g.fillRect(x, (h - bh)/2, 3, bh);
+  }
+}
+
+/* ---------- state ---------- */
+let mode = "daily";
+let decadeFilter = store.get("nichushir-decade", null);
+let round = null;           // {id, offset, tries:[{s, label}], done, won}
+let daily = null;           // {date, picks:[{id,offset}], idx, results:[]}
+let endless = store.get("nichushir-endless", {streak:0, best:0, recent:[]});
+
+function shuffled(arr, seed){
+  const r = rng(hash(seed)), a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+// Each difficulty walks its own fixed shuffled list one song per day, so a song doesn't come back
+// until the whole list for that difficulty has been played.
+function pickDaily(date){
+  const day = dayNumber(date), used = new Set();
+  return DIFFS.map((df, di) => {
+    let pool = SONGS.filter(s => df.tier.includes(s.tier)).map(s => s.id);
+    if (!pool.length) pool = SONGS.map(s => s.id);
+    if (df.half != null){ // hard and expert split tier 3 between them so they never share songs
+      const split = shuffled(pool.sort((a, b) => a - b), "nichushir:split"), mid = Math.ceil(split.length / 2);
+      pool = df.half ? split.slice(mid) : split.slice(0, mid);
+    }
+    const order = shuffled(pool.sort((a, b) => a - b), "nichushir:" + di);
+    const k = (((day - 1) % order.length) + order.length) % order.length;
+    let step = 0;
+    while (used.has(order[(k + step) % order.length]) && step < order.length) step++;
+    const id = order[(k + step) % order.length];
+    used.add(id);
+    const alts = [1, 2, 3, 4, 5, 6].map(n => order[(k + step + n) % order.length]).filter(x => !used.has(x));
+    return {id, offset: 0, alts};
+  });
+}
+function newRound(id, offset){
+  round = {id, offset, tries: [], done:false, won:false, buf:null, el:null, total:30, loading:true, error:null};
+  stopAudio();
+  $("note").textContent = ""; $("note").className = "note";
+  $("guessInput").value = "";
+  render();
+  prepare();
+}
+async function prepare(){
+  const r = round;
+  try{
+    const [m] = await lookup([r.id]);
+    if (m.missing) throw Object.assign(new Error("missing"), {missing:true});
+    const media = await loadMedia(r.id);
+    if (r !== round) return;
+    const total = media.buf ? media.buf.duration : (media.el.duration || 30);
+    r.offset = 0;
+    r.buf = media.buf || null; r.el = media.el || null; r.total = total; r.loading = false;
+  }catch(e){
+    if (r !== round) return;
+    r.loading = false;
+    if (e.missing){ return replaceMissing(); }
+    r.error = "הקטע לא נטען. ודאו שהקובץ פתוח בדפדפן (Chrome / Safari / Edge) ולא בתצוגה מקדימה, ולחצו על כפתור ההשמעה כדי לנסות שוב." + (e && e.message ? ` (${e.message})` : "");
+  }
+  render();
+}
+function replaceMissing(){
+  // the store pulled this track; swap in a stand-in deterministically
+  if (mode === "daily"){
+    const p = daily.picks[daily.idx];
+    const next = (p.alts || []).find(id => !(meta[id] && meta[id].missing) && !daily.picks.some(q => q.id === id));
+    if (next){ p.id = next; saveDaily(); return newRound(next, p.offset); }
+  }
+  return nextEndless();
+}
+
+/* ---------- actions ---------- */
+function clipLen(){ return LADDER[Math.min(round.tries.length, LADDER.length - 1)]; }
+function onPlay(){
+  if (!round) return;
+  if (current){ stopAudio(); return; }
+  if (round.error){ round.error = null; round.loading = true; render(); return prepare(); }
+  if (!round.buf && !round.el) return;
+  const full = round.done;
+  const dur = full ? Math.min(30, round.total) : clipLen();
+  const off = full ? 0 : round.offset;
+  const play = round.buf ? (a, b, c) => playSlice(round.buf, a, b, c) : (a, b, c) => playEl(round.el, a, b, c);
+  play(off, dur, p => {
+    const shown = full ? 30 : clipLen();
+    paintBar(p < 0 ? 0 : p); drawWave(round.buf, round.offset, shown, p < 0 ? 0 : p);
+  });
+}
+function submitGuess(id){
+  if (!round || round.done || round.loading) return;
+  const s = byId[id], ans = byId[round.id];
+  if (!s) return;
+  if (round.tries.some(t => t.id === id)){ flash("כבר ניחשת את השיר הזה"); return; }
+  const st = id === round.id ? "ok" : (norm(s.a) === norm(ans.a) ? "near" : "wrong");
+  round.tries.push({s: st, label: s.t, id});
+  if (st === "ok") finish(true);
+  else if (round.tries.length >= LADDER.length) finish(false);
+  else flash(st === "near" ? "הזמר נכון, השיר לא. נפתח עוד קטע." : "לא זה. נפתח עוד קטע.");
+  $("guessInput").value = ""; closeSuggest();
+  render();
+}
+function skip(){
+  if (!round || round.done || round.loading) return;
+  round.tries.push({s:"skip", label:"דילוג"});
+  if (round.tries.length >= LADDER.length) finish(false);
+  render();
+  if (!round.done) onPlayIfReady();
+}
+function onPlayIfReady(){ if ((round.buf || round.el) && !current) onPlay(); }
+function finish(won){
+  round.done = true; round.won = won; stopAudio();
+  const pts = won ? POINTS[round.tries.length - 1] : 0;
+  if (mode === "daily"){
+    daily.results[daily.idx] = {id: round.id, tries: round.tries.map(t => t.s), pts};
+    saveDaily();
+  } else {
+    endless.streak = won ? endless.streak + 1 : 0;
+    endless.best = Math.max(endless.best, endless.streak);
+    store.set("nichushir-endless", endless);
+  }
+}
+function flash(t){ $("note").textContent = t; $("note").className = "note"; }
+
+/* ---------- daily ---------- */
+function saveDaily(){ store.set("nichushir-daily", daily); }
+function startDaily(){
+  const date = todayIL();
+  daily = store.get("nichushir-daily", null);
+  if (!daily || daily.date !== date){ daily = {date, picks: pickDaily(date), idx: 0, results: []}; saveDaily(); }
+  lookup(daily.picks.map(p => p.id)).catch(() => {});
+  if (daily.idx >= DIFFS.length){ round = null; render(); return; }
+  newRound(daily.picks[daily.idx].id, daily.picks[daily.idx].offset);
+}
+function nextDaily(){
+  daily.idx++; saveDaily();
+  if (daily.idx >= DIFFS.length){ round = null; stopAudio(); render(); return; }
+  newRound(daily.picks[daily.idx].id, daily.picks[daily.idx].offset);
+}
+
+/* ---------- endless ---------- */
+function endlessPool(){ return SONGS.filter(s => decadeFilter == null || s.d === decadeFilter); }
+function nextEndless(){
+  const pool = endlessPool().filter(s => !(meta[s.id] && meta[s.id].missing));
+  const fresh = pool.filter(s => !endless.recent.includes(s.id));
+  const from = fresh.length ? fresh : pool;
+  const s = from[Math.floor(Math.random() * from.length)];
+  endless.recent = [s.id, ...endless.recent].slice(0, Math.min(40, Math.floor(pool.length * 0.7)));
+  store.set("nichushir-endless", endless);
+  newRound(s.id, 0);
+}
+
+/* ---------- autocomplete ---------- */
+let sugg = [], sel = -1;
+function updateSuggest(){
+  const q = norm($("guessInput").value);
+  const ul = $("suggest");
+  if (q.length < 1){ closeSuggest(); return; }
+  sugg = SONGS.filter(s => norm(s.t).includes(q) || norm(s.a).includes(q))
+    .sort((x, y) => (norm(y.t).startsWith(q) - norm(x.t).startsWith(q)) || x.t.localeCompare(y.t, "he"))
+    .slice(0, 8);
+  sel = sugg.length ? 0 : -1;
+  ul.innerHTML = sugg.length
+    ? sugg.map((s, i) => `<li role="option" id="opt${i}" data-id="${s.id}" aria-selected="${i === sel}"><span>${esc(s.t)}</span><small>${esc(s.a)}</small></li>`).join("")
+    : `<li aria-disabled="true"><small>אין שיר כזה ברשימה</small></li>`;
+  ul.hidden = false; $("guessInput").setAttribute("aria-expanded", "true");
+}
+function closeSuggest(){ $("suggest").hidden = true; $("guessInput").setAttribute("aria-expanded", "false"); sugg = []; sel = -1; }
+function moveSel(d){
+  if (!sugg.length) return; sel = (sel + d + sugg.length) % sugg.length;
+  [...$("suggest").children].forEach((li, i) => li.setAttribute("aria-selected", i === sel));
+  $("guessInput").setAttribute("aria-activedescendant", "opt" + sel);
+}
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- render ---------- */
+function paintBar(p, fullMode){
+  const segs = [...$("bar").children];
+  segs.forEach((sg, i) => {
+    const prev = i ? LADDER[i-1] : 0, len = LADDER[i] - prev;
+    const f = Math.max(0, Math.min(1, (p - prev) / len));
+    sg.querySelector(".fill").style.width = f * 100 + "%";
+  });
+}
+function render(){
+  // modes
+  $("mode-daily").setAttribute("aria-pressed", mode === "daily");
+  $("mode-endless").setAttribute("aria-pressed", mode === "endless");
+
+  // topline
+  const tl = $("topline");
+  if (mode === "daily"){
+    const idx = daily ? daily.idx : 0;
+    tl.innerHTML = `<span class="daynum">#${dayNumber(daily.date)} · ${daily.date.split("-").reverse().join(".")}</span><div class="diffs">` +
+      DIFFS.map((d, i) => {
+        const r = daily.results[i];
+        const st = r ? (r.pts ? "won" : "lost") : (i === idx ? "current" : "next");
+        return `<span class="pill" style="--c:${d.c}" data-state="${st}">${d.n}</span>`;
+      }).join("") + `</div>`;
+  } else {
+    tl.innerHTML = `<div class="streak"><span>רצף <b>${endless.streak}</b></span><span>שיא <b>${endless.best}</b></span></div><span class="poolnote">${endlessPool().length} שירים ${decadeFilter ? "מ" + DEC_HE[decadeFilter] : "מכל העשורים"}</span>`;
+  }
+
+  // dial
+  const dec = $("decades");
+  dec.innerHTML = DECADES.map(d => `<button data-d="${d}" aria-pressed="${mode === "endless" ? decadeFilter === d : false}" ${mode === "daily" ? "disabled tabindex=-1" : ""}>${DEC_LABEL[d]}</button>`).join("");
+  const needle = $("needle");
+  const ans = round ? byId[round.id] : null;
+  let pos = null;
+  if (round && round.done) pos = DECADES.indexOf(ans.d);
+  else if (mode === "endless" && decadeFilter != null) pos = DECADES.indexOf(decadeFilter);
+  if (pos == null){ needle.classList.add("hunting"); needle.style.left = ""; }
+  else { needle.classList.remove("hunting"); needle.style.left = `calc(18px + (100% - 36px) * ${(pos + 0.5) / 7} - 1px)`; }
+  $("dialLabel").innerHTML = mode === "endless"
+    ? `<span>בחרו עשור בחוגה</span><button id="allDec" aria-pressed="${decadeFilter == null}">כל העשורים</button>`
+    : `<span>${daily && daily.idx >= DIFFS.length ? "התוצאות של היום" : (round && round.done ? DEC_HE[ans.d] : "המחוג ימצא את העשור כשהסיבוב ייגמר")}</span><span></span>`;
+
+  // summary (daily finished)
+  const finished = mode === "daily" && daily && daily.idx >= DIFFS.length;
+  $("playArea").hidden = finished; $("guessArea").hidden = finished || (round && round.done);
+  $("tries").hidden = finished; $("note").hidden = finished;
+  $("summary").hidden = !finished;
+  if (finished){ $("reveal").hidden = true; renderSummary(); return; }
+  if (!round) return;
+
+  // play key
+  const play = $("play");
+  const busy = round.loading;
+  play.dataset.busy = busy;
+  play.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path id="playIcon" d="${current ? "M6.5 5.5h4v13h-4zM13.5 5.5h4v13h-4z" : "M8 5.5v13l11-6.5z"}"/></svg>` + (busy ? `<span class="spin"></span>` : "");
+  play.setAttribute("aria-label", round.done ? "השמעת 30 השניות" : `השמעת ${clipLen()} שניות`);
+
+  // ladder
+  const open = round.done ? LADDER.length : Math.min(round.tries.length + 1, LADDER.length);
+  $("bar").innerHTML = LADDER.map((_, i) => `<div class="seg ${i < open ? "open" : ""}"><div class="fill"></div></div>`).join("");
+  $("unlocked").innerHTML = round.done ? `<b>30s</b> כל הקטע פתוח` : `<b>${clipLen().toFixed(1)}s</b> פתוחות`;
+  drawWave(round.buf, round.offset, round.done ? 30 : clipLen(), 0);
+
+  // input
+  const left = LADDER.length - round.tries.length;
+  $("count").textContent = `${Math.min(round.tries.length + 1, LADDER.length)}/${LADDER.length}`;
+  const nextAdd = round.tries.length < LADDER.length - 1 ? (LADDER[round.tries.length + 1] - LADDER[round.tries.length]) : 0;
+  $("skip").textContent = left <= 1 ? "ויתור" : `דלג (+${+nextAdd.toFixed(1)}ש׳)`;
+  $("skip").disabled = round.loading;
+  $("guessInput").disabled = round.loading;
+
+  // tries
+  $("tries").innerHTML = LADDER.map((_, i) => { const t = round.tries[i]; return t ? `<div class="try" data-s="${t.s}" title="${esc(t.label)}">${esc(t.label)}</div>` : `<div class="try">${LADDER[i]}s</div>`; }).join("");
+
+  if (round.error){ $("note").textContent = round.error; $("note").className = "note err"; }
+
+  // reveal
+  const rv = $("reveal");
+  if (round.done){
+    const m = meta[round.id] || {};
+    const art = m.artworkUrl100 ? m.artworkUrl100.replace("100x100bb", "300x300bb") : "";
+    const pts = round.won ? POINTS[round.tries.length - 1] : 0;
+    const nextLabel = mode === "daily" ? (daily.idx + 1 >= DIFFS.length ? "לסיכום היום" : "לשיר הבא") : (round.won ? "המשך ברצף" : "רצף חדש");
+    rv.innerHTML = `<div class="reveal">
+      ${art ? `<img src="${art}" alt="">` : `<img alt="">`}
+      <div>
+        <p class="verdict ${round.won ? "ok" : "bad"}">${round.won ? (round.tries.length === 1 ? "מהשנייה הראשונה!" : `נכון! +${pts}`) : "לא הפעם"}</p>
+        <h2>${esc(ans.t)}</h2>
+        <div class="meta">${esc(ans.a)} · ${DEC_HE[ans.d]}</div>
+      </div>
+      <div class="acts">
+        <button class="btn" id="playFull">השמעת 30 השניות</button>
+        <button class="btn primary" id="next">${nextLabel}</button>
+      </div>
+      ${m.trackViewUrl ? `<a href="${m.trackViewUrl}" target="_blank" rel="noopener">להאזנה לשיר המלא ב־Apple Music ↗</a>` : ""}
+    </div>`;
+    rv.hidden = false;
+    $("note").textContent = "";
+  } else rv.hidden = true;
+}
+function renderSummary(){
+  const total = daily.results.reduce((a, r) => a + (r ? r.pts : 0), 0);
+  const emo = {ok:"🟩", near:"🟨", wrong:"🟥", skip:"⬛"};
+  const lines = daily.results.map(r => r.tries.map(t => emo[t]).join("") + (r.pts ? "" : " ✗"));
+  const shareText = `ניחושיר #${dayNumber(daily.date)} · ${total}/500\n` + lines.join("\n");
+  $("summary").innerHTML = `
+    <p class="big">${total}<small>/500</small></p>
+    <div class="rows">${daily.results.map((r, i) => { const s = byId[r.id]; return `<div class="row"><span class="pill" style="--c:${DIFFS[i].c}">${DIFFS[i].n}</span><span class="t">${esc(s.t)} <small style="color:var(--muted)">· ${esc(s.a)}</small></span><span>${r.pts ? "+" + r.pts : "✗"}</span></div>`; }).join("")}</div>
+    <div class="share"><button class="btn primary" id="copy">העתקת התוצאה</button><button class="btn" id="toEndless">למצב האינסופי</button></div>
+    <p class="note" id="copied"></p>
+    <p class="foot" style="margin:0">חמישה שירים חדשים מחר בחצות.</p>`;
+  $("copy").onclick = () => {
+    const done = () => { $("copied").textContent = "התוצאה הועתקה"; };
+    if (navigator.clipboard) navigator.clipboard.writeText(shareText).then(done, () => { $("copied").textContent = shareText; });
+    else $("copied").textContent = shareText;
+  };
+  $("toEndless").onclick = () => setMode("endless");
+}
+
+/* ---------- wiring ---------- */
+function setMode(m){
+  if (m === mode && round) return;
+  mode = m; stopAudio(); closeSuggest();
+  if (m === "daily") startDaily(); else nextEndless();
+}
+$("mode-daily").onclick = () => setMode("daily");
+$("mode-endless").onclick = () => setMode("endless");
+$("play").onclick = onPlay;
+(function knob(){
+  const k = $("knob"); let drag = null, lastVol = volume || 0.8;
+  k.addEventListener("pointerdown", e => { k.setPointerCapture(e.pointerId); drag = {x: e.clientX, y: e.clientY, v: volume}; e.preventDefault(); });
+  k.addEventListener("pointermove", e => { if (!drag) return; setVolume(drag.v + ((drag.y - e.clientY) + (e.clientX - drag.x)) / 160); });
+  const end = () => { drag = null; };
+  k.addEventListener("pointerup", end); k.addEventListener("pointercancel", end);
+  k.addEventListener("wheel", e => { e.preventDefault(); setVolume(volume + (e.deltaY < 0 ? 0.05 : -0.05)); }, {passive:false});
+  k.addEventListener("dblclick", () => { if (volume > 0){ lastVol = volume; setVolume(0); } else setVolume(lastVol || 0.8); });
+  k.addEventListener("keydown", e => {
+    const step = {ArrowUp: .05, ArrowRight: .05, ArrowDown: -.05, ArrowLeft: -.05, PageUp: .2, PageDown: -.2}[e.key];
+    if (step != null){ e.preventDefault(); setVolume(volume + step); }
+    else if (e.key === "Home"){ e.preventDefault(); setVolume(0); }
+    else if (e.key === "End"){ e.preventDefault(); setVolume(1); }
+  });
+  setVolume(volume);
+})();
+$("skip").onclick = skip;
+$("decades").addEventListener("click", e => {
+  const b = e.target.closest("button[data-d]"); if (!b || mode !== "endless") return;
+  const d = +b.dataset.d;
+  if (!SONGS.some(s => s.d === d)){ flash("אין עדיין שירים מהעשור הזה"); return; }
+  decadeFilter = decadeFilter === d ? null : d; store.set("nichushir-decade", decadeFilter);
+  endless.streak = 0; store.set("nichushir-endless", endless);
+  nextEndless();
+});
+$("dialLabel").addEventListener("click", e => {
+  if (e.target.id === "allDec"){ decadeFilter = null; store.set("nichushir-decade", null); nextEndless(); }
+});
+$("reveal").addEventListener("click", e => {
+  if (e.target.id === "playFull") onPlay();
+  if (e.target.id === "next"){ stopAudio(); mode === "daily" ? nextDaily() : nextEndless(); }
+});
+const inp = $("guessInput");
+inp.addEventListener("input", updateSuggest);
+inp.addEventListener("focus", () => { if (inp.value) updateSuggest(); });
+inp.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown"){ e.preventDefault(); moveSel(1); }
+  else if (e.key === "ArrowUp"){ e.preventDefault(); moveSel(-1); }
+  else if (e.key === "Enter"){ e.preventDefault(); if (sel >= 0 && sugg[sel]) submitGuess(sugg[sel].id); }
+  else if (e.key === "Escape") closeSuggest();
+});
+$("suggest").addEventListener("mousedown", e => { const li = e.target.closest("li[data-id]"); if (li){ e.preventDefault(); submitGuess(+li.dataset.id); } });
+document.addEventListener("click", e => { if (!e.target.closest(".field")) closeSuggest(); });
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && document.activeElement !== inp && !e.target.closest("button,[role=slider]")){ e.preventDefault(); onPlay(); }
+});
+window.addEventListener("resize", () => { if (round) drawWave(round.buf, round.offset, round.done ? 30 : clipLen(), 0); });
+
+startDaily();
+</script>
+</body>
+</html>
